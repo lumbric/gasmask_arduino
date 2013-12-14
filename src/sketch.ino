@@ -3,14 +3,17 @@
 
 #define LED_PIN       13
 #define SERVO_PIN     9
-#define SENSOR_TRIG   2
-#define SENSOR_ECHO   3
+#define SENSOR_TRIG   7
+#define SENSOR_ECHO   8
 
-int min_pos      = 0;
-int max_pos      = 75;
-int delay_servo  = 1;     // increase value to make servo slower
-int delay_time   = 50;
-long nuckle_dist = 30;
+int min_pos          = 0;     // start point of servo in degree (between 0 and 180)
+int max_pos          = 75;    // end point of servo in degree (between 0 and 180, must be larger than min_pos)
+int delay_servo      = 1;     // increase value to make servo slower
+int delay_time       = 50;    // time in milliseconds between 2 nuckels
+long nuckle_dist_min = 200;   // nuckels if distance is between min..
+long nuckle_dist_max = 350;   // max...
+
+#define DEBUG 1   // set this to 0 to turn off debug output
 
 Servo servo;
 void nuckel();
@@ -22,26 +25,33 @@ void setup() {
     pinMode(LED_PIN, OUTPUT);
     pinMode(SENSOR_TRIG, OUTPUT);
     pinMode(SENSOR_ECHO, INPUT);
+    digitalWrite(LED_PIN, LOW);
 }
 
 void loop() {
     long distance = get_distance();
-    Serial.println(String("Distance: ") + String(distance));
-
-    if (distance < nuckle_dist) {
+    if (nuckle_dist_min < distance && distance < nuckle_dist_max ) {
         int nuckel_times = (int) random(2, 5);
         for (int i = 0; i < nuckel_times; i++) {
             nuckel();
+            delay(delay_time);
         }
         int wait_time = (int) random(1000, 10000);
         delay(wait_time);
     }
-    else
-        delay(500);
 }
 
+/*
+ */
+bool is_in_nuckle_dist() {
 
+}
+
+/**
+ * pacifier once in and out again
+ */
 void nuckel() {
+    digitalWrite(LED_PIN, HIGH);
     for (int i = min_pos; i <= max_pos; i++) {
         servo.write(i);
         delay(delay_servo);
@@ -50,7 +60,7 @@ void nuckel() {
         servo.write(i);
         delay(delay_servo);
     }
-    delay(delay_time);
+    digitalWrite(LED_PIN, LOW);
 }
 
 
@@ -82,5 +92,6 @@ long get_distance() {
     //Calculate the distance (in cm) based on the speed of sound.
     distance = duration/58.2;
 
+    DEBUG && Serial.println(String("Distance: ") + String(distance));
     return distance;
 }
