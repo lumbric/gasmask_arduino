@@ -6,12 +6,13 @@
 #define SENSOR_TRIG   7
 #define SENSOR_ECHO   8
 
-int min_pos          = 0;     // start point of servo in degree (between 0 and 180)
-int max_pos          = 75;    // end point of servo in degree (between 0 and 180, must be larger than min_pos)
-int delay_servo      = 1;     // increase value to make servo slower
-int delay_time       = 50;    // time in milliseconds between 2 nuckels
-long nuckle_dist_min = 200;   // nuckels if distance is between min..
-long nuckle_dist_max = 350;   // max...
+int min_pos           = 0;     // start point of servo in degree (between 0 and 180)
+int max_pos           = 75;    // end point of servo in degree (between 0 and 180, must be larger than min_pos)
+int delay_servo       = 1;     // increase value to make servo slower
+int delay_time        = 50;    // time in milliseconds between 2 nuckels
+long nuckle_dist_min  = 150;   // nuckels if distance is between min..
+long nuckle_dist_max  = 600;   // max...
+//long wait_between_min = 10
 
 #define DEBUG 1   // set this to 0 to turn off debug output
 
@@ -29,23 +30,34 @@ void setup() {
 }
 
 void loop() {
-    long distance = get_distance();
-    if (nuckle_dist_min < distance && distance < nuckle_dist_max ) {
-        int nuckel_times = (int) random(2, 5);
-        for (int i = 0; i < nuckel_times; i++) {
-            nuckel();
-            delay(delay_time);
+    DEBUG && Serial.println("Start nuckel...");
+    int nuckel_times = (int) random(2, 5);
+    for (int i = 0; i < nuckel_times; i++) {
+        if (delay_until(delay_time) != 0) {
+            return;
         }
-        int wait_time = (int) random(1000, 10000);
-        delay(wait_time);
+        nuckel();
     }
+    int wait_time = (int) random(1000, 10000);
+    delay_until(wait_time);
 }
 
-/*
+
+/**
+ * Delays delay_time if in nuckle distance and returns 0. Aborts if
+ * not in nuckle distance and returns -1.
  */
-bool is_in_nuckle_dist() {
-
+int delay_until(unsigned long delay_time) {
+    unsigned long start = millis();
+    while (millis() - start < delay_time){
+        long distance = get_distance();
+        if (! (nuckle_dist_min < distance && distance < nuckle_dist_max ) ) {
+            return -1;
+        }
+    }
+    return 0;
 }
+
 
 /**
  * pacifier once in and out again
