@@ -11,8 +11,10 @@ int max_pos           = 75;    // end point of servo in degree (between 0 and 18
 int delay_servo       = 1;     // increase value to make servo slower
 int delay_time        = 50;    // time in milliseconds between 2 nuckels
 long nuckle_dist_min  = 150;   // nuckels if distance is between min..
-long nuckle_dist_max  = 600;   // max...
+long nuckle_dist_max  = 600;   // ... and max distance  (if distance > max we assume nobody in museum)
 //long wait_between_min = 10
+
+int dist_avg_times    = 5;     // measure distance x times to avoid noise
 
 #define DEBUG 1   // set this to 0 to turn off debug output
 
@@ -30,7 +32,6 @@ void setup() {
 }
 
 void loop() {
-    DEBUG && Serial.println("Start nuckel...");
     int nuckel_times = (int) random(2, 5);
     for (int i = 0; i < nuckel_times; i++) {
         if (delay_until(delay_time) != 0) {
@@ -88,7 +89,7 @@ void nuckel() {
  And modified further by ScottC here: http://arduinobasics.blogspot.com/
  on 10 Nov 2012.
  */
-long get_distance() {
+long get_distance_once() {
     /* The following SENSOR_TRIG/SENSOR_ECHO cycle is used to determine the
     distance of the nearest object by bouncing soundwaves off of it. */
     long duration, distance;
@@ -104,6 +105,17 @@ long get_distance() {
     //Calculate the distance (in cm) based on the speed of sound.
     distance = duration/58.2;
 
+    return distance;
+}
+
+
+long get_distance() {
+    long distance = get_distance_once();
+    for (int i = 1; i < dist_avg_times; i++) {
+        long distance_tmp = get_distance_once();
+        if (distance_tmp < distance)
+            distance = distance_tmp;
+    }
     DEBUG && Serial.println(String("Distance: ") + String(distance));
     return distance;
 }
