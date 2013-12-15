@@ -1,26 +1,35 @@
 #include <Arduino.h>
 #include <Servo.h>
+#include <NewPing.h>
+
 
 #define LED_PIN       13
 #define SERVO_PIN     9
 #define SENSOR_TRIG   7
-#define SENSOR_ECHO   8
+#define SENSOR_ECHO   7
+#define MAX_DISTANCE  200
 
-int min_pos           = 0;     // start point of servo in degree (between 0 and 180)
-int max_pos           = 75;    // end point of servo in degree (between 0 and 180, must be larger than min_pos)
-int delay_servo       = 1;     // increase value to make servo slower
-int delay_time        = 50;    // time in milliseconds between 2 nuckels
-long nuckle_dist_min  = 150;   // nuckels if distance is between min..
-long nuckle_dist_max  = 600;   // ... and max distance  (if distance > max we assume nobody in museum)
+
+
+const int min_pos           = 0;     // start point of servo in degree (between 0 and 180)
+const int max_pos           = 75;    // end point of servo in degree (between 0 and 180, must be larger than min_pos)
+const int delay_servo       = 1;     // increase value to make servo slower
+const int delay_time        = 50;    // time in milliseconds between 2 nuckels
+const long nuckle_dist_min  = 150;   // nuckels if distance is between min..
+const long nuckle_dist_max  = 400;   // ... and max distance  (if distance > max we assume nobody in museum)
 //long wait_between_min = 10
 
-int dist_avg_times    = 5;     // measure distance x times to avoid noise
 
 #define DEBUG 1   // set this to 0 to turn off debug output
 
 Servo servo;
+// see also: http://code.google.com/p/arduino-new-ping/wiki/NewPing_Single_Pin_Sketch
+NewPing sonar(SENSOR_TRIG, SENSOR_TRIG, MAX_DISTANCE);
 void nuckel();
 long get_distance();
+long last_distance = 0;
+unsigned long last_measured = 0;
+
 
 void setup() {
     Serial.begin (9600);
@@ -30,6 +39,7 @@ void setup() {
     pinMode(SENSOR_ECHO, INPUT);
     digitalWrite(LED_PIN, LOW);
 }
+
 
 void loop() {
     int nuckel_times = (int) random(2, 5);
@@ -77,45 +87,19 @@ void nuckel() {
 }
 
 
-/* Based on:
- HC-SR04 Ping distance sensor:
- VCC to arduino 5v 
- GND to arduino GND
- Echo to Arduino pin 7 
- Trig to Arduino pin 8
- 
- This sketch originates from Virtualmix: http://goo.gl/kJ8Gl
- Has been modified by Winkle ink here: http://winkleink.blogspot.com.au/2012/05/arduino-hc-sr04-ultrasonic-distance.html
- And modified further by ScottC here: http://arduinobasics.blogspot.com/
- on 10 Nov 2012.
- */
-long get_distance_once() {
-    /* The following SENSOR_TRIG/SENSOR_ECHO cycle is used to determine the
-    distance of the nearest object by bouncing soundwaves off of it. */
-    long duration, distance;
-    digitalWrite(SENSOR_TRIG, LOW); 
-    delayMicroseconds(2); 
-
-    digitalWrite(SENSOR_TRIG, HIGH);
-    delayMicroseconds(10); 
-
-    digitalWrite(SENSOR_TRIG, LOW);
-    duration = pulseIn(SENSOR_ECHO, HIGH);
-
-    //Calculate the distance (in cm) based on the speed of sound.
-    distance = duration/58.2;
-
-    return distance;
-}
-
-
 long get_distance() {
-    long distance = get_distance_once();
-    for (int i = 1; i < dist_avg_times; i++) {
-        long distance_tmp = get_distance_once();
-        if (distance_tmp < distance)
-            distance = distance_tmp;
-    }
-    DEBUG && Serial.println(String("Distance: ") + String(distance));
-    return distance;
+    delay(50);
+    if (millis() - last_measured < 50)
+        return last_distance;
+
+    unsigned int uS = sonar.ping();
+    last_measured = millis();
+    last_distance = uS / US_ROUNDTRIP_CM;
+    Serial.print("Distance: ");
+    Serial.println(last_distance);
+
+    if (last_distance == 0)
+        return MAX_DISTANCE;
+    // Convert ping time to distance and print result (0 = outside set distance range, no ping echo)
+    return last_distance;
 }
