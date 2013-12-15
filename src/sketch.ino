@@ -79,7 +79,7 @@ int delay_until(long time) {
     long start = millis();
     while ((long) millis() - start < time) {
         if (nuckle_dist > get_distance()) {
-            return -1;
+            /*return -1;*/
         }
     }
     return 0;
