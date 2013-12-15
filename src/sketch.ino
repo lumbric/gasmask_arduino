@@ -3,12 +3,6 @@
 #include <NewPing.h>
 
 
-#define LED_PIN       13
-#define SERVO_PIN     9
-#define SENSOR_TRIG   7
-#define SENSOR_ECHO   7
-
-
 /***** Config ******/
 // one nuckle is a servo movement in and out again
 const int min_pos           = 0;         // start point of servo in degree (between 0 and 180)
@@ -20,30 +14,44 @@ long wait_between_min       = 1 * 1000;  // time between to wait between two nuc
 long wait_between_max       = 10 * 1000; // time between to wait between two nuckle sets in milliseconds
 int number_nuckles_min      = 2;         // nummber of nuckles in one nuckle set
 int number_nuckles_max      = 4;         // nummber of nuckles in one nuckle set
-/***** Config ******/
+int number_dist_mesaures    = 5;         // measure x times to be sure nobody is there
+/***** END Config ******/
+
+
+
+
+
+
+
+#define LED_PIN       13
+#define SERVO_PIN     9
+#define SENSOR        7
 
 #define DEBUG 1   // set this to 0 to turn off debug output
 
+
 Servo servo;
 // see also: http://code.google.com/p/arduino-new-ping/wiki/NewPing_Single_Pin_Sketch
-NewPing sonar(SENSOR_TRIG, SENSOR_TRIG, nuckle_dist);
+NewPing sonar(SENSOR, SENSOR, nuckle_dist);
 void nuckel();
 long get_distance();
 long last_distance = 0;
-unsigned long last_measured = 0;
+unsigned long last_measured = -100;  // first time we do not have to wait
+int max_dist_count = 0;
 
 
 void setup() {
     Serial.begin (9600);
     servo.attach(SERVO_PIN);
     pinMode(LED_PIN, OUTPUT);
-    pinMode(SENSOR_TRIG, OUTPUT);
-    pinMode(SENSOR_ECHO, INPUT);
     digitalWrite(LED_PIN, LOW);
+    Serial.println("Ready!");
 }
 
 
 void loop() {
+    // the following is called a nuckle set, a random number (a few, like 2-4) nuckles
+    // aborted if somebody comes close
     int nuckel_times = (int) random(number_nuckles_min, number_nuckles_max + 1);
     for (int i = 0; i < nuckel_times; i++) {
         if (delay_until(delay_time) != 0) {
@@ -89,18 +97,35 @@ void nuckel() {
 
 
 long get_distance() {
+    // we should not measure distance more often than every 50ms
     if (millis() - last_measured < 50)
         return last_distance;
 
+    long distance;
     unsigned int uS = sonar.ping();
     last_measured = millis();
-    last_distance = uS / US_ROUNDTRIP_CM;
+    // Convert ping time to distance and print result (0 = outside set distance range, no ping echo)
+    distance = uS / US_ROUNDTRIP_CM;
     Serial.print("Distance: ");
-    Serial.println(last_distance);
+    Serial.println(distance);
 
     // 0 means max distance exceeded
-    if (last_distance == 0)
-        return nuckle_dist;
-    // Convert ping time to distance and print result (0 = outside set distance range, no ping echo)
+    // note that nuckle_dist is at the same time the max measured distance
+    if (distance == 0)
+        distance = nuckle_dist;
+
+    if (distance == nuckle_dist) {
+        // to avoid noise, we do not return the max distance immediately
+        // but only if it was measured number_dist_mesaures times
+        max_dist_count++;
+        if (max_dist_count >= number_dist_mesaures) {
+            last_distance = distance;
+        }
+    }
+    else {
+        last_distance = distance;
+        max_dist_count = 0;
+    }
+
     return last_distance;
 }
