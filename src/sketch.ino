@@ -35,7 +35,7 @@ Servo servo;
 NewPing sonar(SENSOR, SENSOR, nuckle_dist);
 void nuckel();
 long get_distance();
-long last_distance = 0;
+long last_distance = nuckle_dist;
 unsigned long last_measured = -100;  // first time we do not have to wait
 int max_dist_count = 0;
 
@@ -53,13 +53,20 @@ void loop() {
     // the following is called a nuckle set, a random number (a few, like 2-4) nuckles
     // aborted if somebody comes close
     int nuckel_times = (int) random(number_nuckles_min, number_nuckles_max + 1);
+    int wait_time = (int) random(wait_between_min, wait_between_max);
+    Serial.print("Starting nuckle set with ");
+    Serial.print(nuckel_times);
+    Serial.print(" nuckels and ");
+    Serial.print(wait_time);
+    Serial.println(" milliseconds delay afterwards.");
+
     for (int i = 0; i < nuckel_times; i++) {
         if (delay_until(delay_time) != 0) {
-            return;
+            /*return;*/
+            break;
         }
         nuckel();
     }
-    int wait_time = (int) random(wait_between_min, wait_between_max);
     delay_until(wait_time);
 }
 
@@ -68,9 +75,9 @@ void loop() {
  * Delays delay_time if in nuckle distance and returns 0. Aborts if
  * not in nuckle distance and returns -1.
  */
-int delay_until(unsigned long delay_time) {
-    unsigned long start = millis();
-    while (millis() - start < delay_time){
+int delay_until(long time) {
+    long start = millis();
+    while ((long) millis() - start < time) {
         if (nuckle_dist > get_distance()) {
             return -1;
         }
@@ -127,5 +134,7 @@ long get_distance() {
         max_dist_count = 0;
     }
 
+    Serial.print("Last distance: ");
+    Serial.println(last_distance);
     return last_distance;
 }
